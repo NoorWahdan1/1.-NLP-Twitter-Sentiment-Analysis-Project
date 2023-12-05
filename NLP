@@ -1,0 +1,53 @@
+import pandas as pd
+import re
+import nltk
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+import spacy
+from nltk.stem import PorterStemmer
+from sklearn.metrics import classification_report
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import BernoulliNB
+df = pd.read_csv("training.1600000.processed.noemoticon.csv", encoding="latin-1")
+y = df.iloc[795000:805000, 0]
+x = df.iloc[795000:805000, 5]
+def preprocess_tweet(tweet):
+    tweet = re.sub(r"http\S+|www\S+|https\S+|@\w+|#\w+|[^\w\s]", " ", tweet)
+    tweet = tweet.lower()
+    tokens = word_tokenize(tweet)
+    stop_words = set(stopwords.words("english"))
+    filtered_tokens = [token for token in tokens if token.lower() not in stop_words]
+    stemmer = PorterStemmer()
+    stem_tokens = [stemmer.stem(token) for token in filtered_tokens]
+    clean_tweet = " ".join(stem_tokens)
+    return clean_tweet
+i = 795000
+while i < 805000:
+    x[i] = preprocess_tweet(x[i])
+    i += 1
+X_train, X_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
+v = CountVectorizer()
+X_train_cv = v.fit_transform(X_train.values)
+model = BernoulliNB()
+model.fit(X_train_cv, y_train)
+X_test_cv = v.transform(X_test)
+tweets = [
+    "co-operating fully with the governing body",
+    "The club is aware of an active FA investigation into the social media activity of a staff member",
+    "The club cannot comment further while the investigation is ongoing but wishes to reiterate its zero-tolerance policy against discrimination of any kind",
+    "I need a hug",
+    "I feel happy",
+]
+for i in range(len(tweets)):
+    tweets[i] = preprocess_tweet(tweets[i])
+
+tweets_count = v.transform(tweets)
+result = []
+for i in range(len(tweets)):
+    if model.predict(tweets_count)[i] == 4:
+        result.append("Positive")
+    else:
+        result.append("Negative")
+print(result)
